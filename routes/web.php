@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\Admin\LayananController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -14,15 +15,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('dashboard');
     
     // User management routes
-    Route::get('/pengguna', [UserController::class, 'index'])->name('pengguna.index');
-    Route::get('/pengguna/create', [UserController::class, 'create'])->name('pengguna.create');
-    Route::post('/pengguna', [UserController::class, 'store'])->name('pengguna.store');
-    Route::get('/pengguna/{id_user}/edit', [UserController::class, 'edit'])->name('pengguna.edit');
-    Route::put('/pengguna/{id_user}', [UserController::class, 'update'])->name('pengguna.update');
-    Route::delete('/pengguna/{id_user}', [UserController::class, 'destroy'])->name('pengguna.destroy');
-    Route::get('/pengguna/{id_user}', [UserController::class, 'show'])->name('pengguna.show');
+    Route::resource('pengguna', UserController::class)->parameters([
+        'pengguna' => 'id_user'
+    ]);
+    
+    // Layanan management routes
+    Route::resource('layanan', LayananController::class);
 });
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
-require __DIR__.'/admin.php';

@@ -1,5 +1,3 @@
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
     Table, 
     TableBody, 
@@ -7,66 +5,58 @@ import {
     TableHead, 
     TableHeader, 
     TableRow 
-} from '../../components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+} from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router } from '@inertiajs/react';
 import { Edit, Plus, Trash2, Search } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
-import { Input } from '@/components/ui/input';
 
-type User = {
-    id_user: number;
-    email: string;
-    role: 'kasir' | 'bendahara';
-    nama: string;
-    jenis_kelamin: 'L' | 'P';
-    alamat: string;
-    nomor_telpon: string;
-};
-
-interface PenggunaIndexProps {
-    users: User[];
+interface Layanan {
+    id_layanan: number;
+    nama_layanan: string;
+    trf_kunjungan: number;
+    layanan_dokter: number;
+    layanan_tindakan: number;
+    total_harga: number;
 }
 
-export default function PenggunaIndex({ users }: PenggunaIndexProps) {
-    const [userToDelete, setUserToDelete] = useState<User | null>(null);
+interface LayananIndexProps {
+    layanan: Layanan[];
+}
+
+export default function LayananIndex({ layanan }: LayananIndexProps) {
+    const [layananToDelete, setLayananToDelete] = useState<Layanan | null>(null);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    
-    const filteredUsers = useMemo(() => {
-        return users.filter((user) => {
+
+    const filteredLayanan = useMemo(() => {
+        return layanan.filter((item) => {
             return (
-                user.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                user.email.toLowerCase().includes(searchTerm.toLowerCase())
+                item.nama_layanan.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                item.id_layanan.toString().includes(searchTerm)
             );
         });
-    }, [users, searchTerm]);
-    
+    }, [layanan, searchTerm]);
+
     const handleDelete = () => {
-        if (userToDelete) {
-            const toastLoading = toast.loading('Menghapus pengguna...');
+        if (layananToDelete) {
+            const toastLoading = toast.loading('Menghapus layanan...');
             
-            router.delete(route('pengguna.destroy', userToDelete.id_user), {
+            router.delete(route('layanan.destroy', layananToDelete.id_layanan), {
                 onSuccess: () => {
                     toast.dismiss(toastLoading);
-                    toast.success('Pengguna berhasil dihapus');
+                    toast.success('Layanan berhasil dihapus');
                     setIsDeleteDialogOpen(false);
                     
                     setTimeout(() => {
-                        router.visit(route('pengguna.index'), { 
+                        router.visit(route('layanan.index'), { 
                             preserveScroll: true,
-                            only: ['users']
+                            only: ['layanan']
                         });
                     }, 1000);
                 },
@@ -76,30 +66,39 @@ export default function PenggunaIndex({ users }: PenggunaIndexProps) {
                     if (errors.message) {
                         toast.error(errors.message);
                     } else {
-                        toast.error('Gagal menghapus pengguna');
+                        toast.error('Gagal menghapus layanan');
                     }
                 }
             });
         }
     };
-
-    const confirmDelete = (user: User) => {
-        setUserToDelete(user);
+    
+    const confirmDelete = (item: Layanan) => {
+        setLayananToDelete(item);
         setIsDeleteDialogOpen(true);
+    };
+    
+    const formatRupiah = (amount: number) => {
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(amount);
     };
 
     const breadcrumbs = [
         { title: 'Dashboard', href: route('dashboard') },
-        { title: 'Pengguna', href: route('pengguna.index') },
+        { title: 'Data Layanan', href: route('layanan.index') },
     ];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Manajemen Pengguna" />
-
+            <Head title="Data Layanan" />
+            
             <div className="flex h-full flex-1 flex-col gap-4 p-4">
                 <div className="text-center mb-2">
-                    <h1 className="text-2xl font-bold tracking-tight">Manajemen Pengguna</h1>
+                    <h1 className="text-2xl font-bold tracking-tight">Data Layanan</h1>
                 </div>
 
                 <Card className="shadow-sm rounded-xl">
@@ -109,7 +108,7 @@ export default function PenggunaIndex({ users }: PenggunaIndexProps) {
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input 
                                     type="text" 
-                                    placeholder="Cari nama atau email..." 
+                                    placeholder="Cari ID atau nama layanan..." 
                                     className="h-9 pl-8" 
                                     value={searchTerm}
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
@@ -117,8 +116,8 @@ export default function PenggunaIndex({ users }: PenggunaIndexProps) {
                             </div>
                         </div>
                         <Button asChild size="sm" className="h-9 gap-1 bg-primary/90 hover:bg-primary shadow-sm">
-                            <Link href={route('pengguna.create')}>
-                                <Plus className="h-4 w-4" /> Tambah Pengguna
+                            <Link href={route('layanan.create')}>
+                                <Plus className="h-4 w-4" /> Tambah Layanan
                             </Link>
                         </Button>
                     </CardHeader>
@@ -126,43 +125,39 @@ export default function PenggunaIndex({ users }: PenggunaIndexProps) {
                         <Table className="w-full">
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="font-medium">Nama</TableHead>
-                                    <TableHead className="font-medium">Email</TableHead>
-                                    <TableHead className="font-medium">Role</TableHead>
-                                    <TableHead className="font-medium">Jenis Kelamin</TableHead>
-                                    <TableHead className="font-medium">Alamat</TableHead>
-                                    <TableHead className="font-medium">Nomor Telepon</TableHead>
-                                    <TableHead className="text-center font-medium w-[180px]">Aksi</TableHead>
+                                    <TableHead className="font-medium">No</TableHead>
+                                    <TableHead className="font-medium">Nama Layanan</TableHead>
+                                    <TableHead className="font-medium">Tarif Kunjungan</TableHead>
+                                    <TableHead className="font-medium">Layanan Dokter</TableHead>
+                                    <TableHead className="font-medium">Layanan Tindakan</TableHead>
+                                    <TableHead className="font-medium">Total Harga</TableHead>
+                                    <TableHead className="text-right font-medium">Aksi</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredUsers.length === 0 ? (
+                                {filteredLayanan.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={7} className="text-center">
-                                            Tidak ada data pengguna
+                                            Tidak ada data layanan
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    filteredUsers.map((user) => (
-                                        <TableRow key={user.id_user}>
-                                            <TableCell className="font-medium">{user.nama}</TableCell>
-                                            <TableCell className="text-sm">{user.email}</TableCell>
-                                            <TableCell>
-                                                <Badge variant={user.role === 'kasir' ? 'default' : 'secondary'} className="px-2 py-1">
-                                                    {user.role === 'kasir' ? 'Kasir' : 'Bendahara'}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-sm">{user.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</TableCell>
-                                            <TableCell className="text-sm truncate max-w-[120px]">{user.alamat}</TableCell>
-                                            <TableCell className="text-sm">{user.nomor_telpon}</TableCell>
+                                    filteredLayanan.map((item, index) => (
+                                        <TableRow key={item.id_layanan}>
+                                            <TableCell>{item.id_layanan}</TableCell>
+                                            <TableCell className="font-medium">{item.nama_layanan}</TableCell>
+                                            <TableCell className="text-sm">{formatRupiah(item.trf_kunjungan)}</TableCell>
+                                            <TableCell className="text-sm">{formatRupiah(item.layanan_dokter)}</TableCell>
+                                            <TableCell className="text-sm">{formatRupiah(item.layanan_tindakan)}</TableCell>
+                                            <TableCell className="text-sm font-semibold">{formatRupiah(item.total_harga)}</TableCell>
                                             <TableCell className="text-right whitespace-nowrap">
                                                 <div className="flex justify-end gap-2">
                                                     <Button variant="outline" size="sm" asChild className="h-8">
-                                                        <Link href={route('pengguna.edit', user.id_user)}>
+                                                        <Link href={route('layanan.edit', item.id_layanan)}>
                                                             <Edit className="h-3.5 w-3.5 mr-1" /> Edit
                                                         </Link>
                                                     </Button>
-                                                    <Button variant="destructive" size="sm" className="h-8" onClick={() => confirmDelete(user)}>
+                                                    <Button variant="destructive" size="sm" className="h-8" onClick={() => confirmDelete(item)}>
                                                         <Trash2 className="h-3.5 w-3.5 mr-1" /> Hapus
                                                     </Button>
                                                 </div>
@@ -175,14 +170,14 @@ export default function PenggunaIndex({ users }: PenggunaIndexProps) {
                     </CardContent>
                 </Card>
             </div>
-
+            
             {/* Delete Confirmation Dialog */}
             <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Konfirmasi Hapus Pengguna</DialogTitle>
+                        <DialogTitle>Konfirmasi Hapus Layanan</DialogTitle>
                         <DialogDescription>
-                            Apakah Anda yakin ingin menghapus pengguna <strong>{userToDelete?.nama}</strong>? Tindakan ini tidak dapat dibatalkan.
+                            Apakah Anda yakin ingin menghapus layanan <strong>{layananToDelete?.nama_layanan}</strong>? Tindakan ini tidak dapat dibatalkan.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>

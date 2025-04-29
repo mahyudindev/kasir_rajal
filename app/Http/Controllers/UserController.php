@@ -16,7 +16,11 @@ class UserController extends Controller
      */
     public function index()
     {
-        $users = User::with('admin')->get()->map(function ($user) {
+        $users = User::select(['id_user', 'email', 'role'])
+            ->with(['admin:id_admin,id_user,nama,jenis_kelamin,alamat,nomor_telpon'])
+            ->get();
+
+        $users = $users->map(function ($user) {
             return [
                 'id_user' => $user->id_user,
                 'email' => $user->email,
@@ -107,8 +111,7 @@ class UserController extends Controller
      */
     public function edit($id_user)
     {
-        $pengguna = User::findOrFail($id_user);
-        $pengguna->load('admin');
+        $pengguna = User::select(['id_user', 'email', 'role'])->with(['admin:id_admin,id_user,nama,jenis_kelamin,alamat,nomor_telpon'])->findOrFail($id_user);
         
         $user = [
             'id_user' => $pengguna->id_user,

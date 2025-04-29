@@ -14,15 +14,15 @@ class layanan extends Model
         'id_layanan',
         'nama_layanan',
         'trf_kunjungan',
-        'trf_tindakan',
-        'trf_layanan',
+        'layanan_dokter',
+        'layanan_tindakan',
         'total_harga',
     ];
 
     protected $casts = [
         'trf_kunjungan' => 'decimal:2',
-        'trf_tindakan' => 'decimal:2',
-        'trf_layanan' => 'decimal:2',
+        'layanan_dokter' => 'decimal:2',
+        'layanan_tindakan' => 'decimal:2',
         'total_harga' => 'decimal:2',
     ];
 }

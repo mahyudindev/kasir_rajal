@@ -19,4 +19,20 @@ class transaksi_detail extends Model
         'id_transaksi' => 'integer',
         'id_layanan' => 'integer',
     ];
+    
+    /**
+     * Get the layanan that belongs to this transaction detail
+     */
+    public function layanan()
+    {
+        return $this->belongsTo(layanan::class, 'id_layanan', 'id_layanan');
+    }
+    
+    /**
+     * Get the transaction that this detail belongs to
+     */
+    public function transaksi()
+    {
+        return $this->belongsTo(transaksi::class, 'id_transaksi', 'id_transaksi');
+    }
 }

@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\Admin\LayananController;
+use App\Http\Controllers\TransaksiController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -21,6 +22,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     // Layanan management routes
     Route::resource('layanan', LayananController::class);
+    
+    // Transaksi routes
+    Route::resource('transaksi', TransaksiController::class);
+    Route::get('search-layanan', [TransaksiController::class, 'searchLayanan'])->name('transaksi.search-layanan');
 });
 
 require __DIR__.'/settings.php';

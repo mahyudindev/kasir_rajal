@@ -21,4 +21,12 @@ class transaksi extends Model
         'total_harga' => 'decimal:2',
         'total_bayar' => 'decimal:2',
     ];
+    
+    /**
+     * Get the transaction details for this transaction
+     */
+    public function transaksiDetails()
+    {
+        return $this->hasMany(transaksi_detail::class, 'id_transaksi', 'id_transaksi');
+    }
 }

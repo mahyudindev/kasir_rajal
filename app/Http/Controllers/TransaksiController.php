@@ -16,26 +16,66 @@ class TransaksiController extends Controller
      */
     public function index()
     {
-        $transaksi = transaksi::with(['transaksiDetails.layanan' => function($query) {
-            $query->select('id_layanan', 'nama_layanan', 'total_harga');
-        }])->select([
-            'id_transaksi',
-            'id_admin',
-            'nama_pasien',
-            'total_harga',
-            'total_bayar',
-            'created_at'
-        ])->orderBy('created_at', 'desc')->get();
+        $transaksiCollection = transaksi::with('transaksiDetails.layanan')->latest()->get();
+        
+        $transaksi = $transaksiCollection->map(function($item) {
+            $details = $item->transaksiDetails->map(function($detail) {
+                $layanan = layanan::find($detail->id_layanan);
+                
+                return [
+                    'id_transaksi_detail' => $detail->id_transaksi_detail,
+                    'id_transaksi' => $detail->id_transaksi,
+                    'id_layanan' => $detail->id_layanan,
+                    'created_at' => $detail->created_at,
+                    'updated_at' => $detail->updated_at,
+                    'layanan' => $layanan ? [
+                        'id_layanan' => $layanan->id_layanan,
+                        'nama_layanan' => $layanan->nama_layanan,
+                        'trf_kunjungan' => $layanan->trf_kunjungan,
+                        'layanan_dokter' => $layanan->layanan_dokter,
+                        'layanan_tindakan' => $layanan->layanan_tindakan,
+                        'total_harga' => $layanan->total_harga,
+                        'created_at' => $layanan->created_at,
+                        'updated_at' => $layanan->updated_at,
+                    ] : null
+                ];
+            });
+            
+            return [
+                'id_transaksi' => $item->id_transaksi,
+                'id_admin' => $item->id_admin,
+                'nama_pasien' => $item->nama_pasien,
+                'total_harga' => $item->total_harga,
+                'total_bayar' => $item->total_bayar,
+                'created_at' => $item->created_at,
+                'updated_at' => $item->updated_at,
+                'transaksiDetails' => $details->toArray()
+            ];
+        });
+        
+        $layanan = layanan::all();
 
-        $layanan = layanan::select([
-            'id_layanan',
-            'nama_layanan',
-            'total_harga'
-        ])->get();
+        $popularLayanan = layanan::select('layanan.*')
+            ->selectRaw('COUNT(transaksi_detail.id_layanan) as transaction_count')
+            ->leftJoin('transaksi_detail', 'layanan.id_layanan', '=', 'transaksi_detail.id_layanan')
+            ->groupBy('layanan.id_layanan', 'layanan.nama_layanan', 'layanan.trf_kunjungan', 
+                     'layanan.layanan_dokter', 'layanan.layanan_tindakan', 'layanan.total_harga',
+                     'layanan.created_at', 'layanan.updated_at')
+            ->orderByDesc('transaction_count')
+            ->limit(10)
+            ->get();
+
+        if ($popularLayanan->isEmpty() && $layanan->isNotEmpty()) {
+            $popularLayanan = $layanan->map(function($item) {
+                $item->transaction_count = 0;
+                return $item;
+            })->take(10);
+        }
 
         return Inertia::render('transaksi/index', [
             'transaksi' => $transaksi,
-            'layanan' => $layanan
+            'layanan' => $layanan,
+            'popularLayanan' => $popularLayanan
         ]);
     }
 
@@ -61,29 +101,41 @@ class TransaksiController extends Controller
         ], $messages);
 
         DB::beginTransaction();
-        
         try {
-            // Create transaction
-            $transaksi = transaksi::create([
-                'id_admin' => auth()->user()->id ?? 1,
-                'nama_pasien' => $validated['nama_pasien'],
-                'total_harga' => $validated['total_harga'],
-                'total_bayar' => $validated['total_bayar'],
-            ]);
-
-            // Create transaction details
-            foreach ($validated['layanan_ids'] as $layanan_id) {
-                transaksi_detail::create([
-                    'id_transaksi' => $transaksi->id_transaksi,
-                    'id_layanan' => $layanan_id,
-                ]);
+            $transaksi = new transaksi();
+            $transaksi->nama_pasien = $request->nama_pasien;
+            $transaksi->total_harga = $request->total_harga;
+            $transaksi->total_bayar = $request->total_bayar;
+            
+            $transaksi->id_admin = auth()->id() ?? 1; 
+            
+            $saveResult = $transaksi->save();
+            
+            foreach ($request->layanan_ids as $key => $layanan_id) {
+                try {
+                    $detail = new transaksi_detail();
+                    $detail->id_transaksi = $transaksi->id_transaksi;
+                    $detail->id_layanan = $layanan_id;
+                    
+                    $detailSaveResult = $detail->save();
+                } catch (\Exception $detailEx) {
+                    throw $detailEx; 
+                }
             }
 
             DB::commit();
-            return redirect()->route('transaksi.index')->with('success', 'Transaksi berhasil disimpan')->with('saved_transaction_id', $transaksi->id_transaksi);
+            
+            session()->flash('saved_transaction_id', $transaksi->id_transaksi);
+            
+            return redirect()->route('transaksi.index')
+                ->with('success', 'Transaksi berhasil disimpan')
+                ->with('saved_transaction_id', $id);
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->withErrors(['error' => 'Terjadi kesalahan saat menyimpan transaksi: ' . $e->getMessage()]);
+            
+            return redirect()->route('transaksi.index')
+                ->with('error', 'Transaksi gagal disimpan: ' . $e->getMessage())
+                ->with('transaction_failed', true);
         }
     }
 
@@ -100,5 +152,36 @@ class TransaksiController extends Controller
             ->get();
         
         return response()->json($layanan);
+    }
+    
+    /**
+     * Remove the specified transaction from storage.
+     */
+    public function destroy($id)
+    {
+        try {
+            DB::beginTransaction();
+            
+            $transaksi = transaksi::findOrFail($id);
+            
+            transaksi_detail::where('id_transaksi', $id)->delete();
+            
+            $transaksi->delete();
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaksi berhasil dihapus'
+            ]);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus transaksi: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

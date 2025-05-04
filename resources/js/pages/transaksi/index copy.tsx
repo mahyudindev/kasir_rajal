@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { generateReceiptHtml, formatRupiah as formatReceiptRupiah } from '@/utils/receiptGenerator';
 import { CreditCard, ShoppingCart, ShoppingBag, X, Loader2 } from 'lucide-react';
 import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
@@ -399,13 +398,11 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
 
         const toastLoading = toast.loading('Menyimpan transaksi...');
 
-        const paymentInput = parseFloat(totalBayar);
-        
         router.post(route('transaksi.store'), {
             nama_pasien: namaPasien,
             layanan_ids: layananIds,
             total_harga: totalHarga,
-            total_bayar: totalHarga,
+            total_bayar: parseFloat(totalBayar),
         }, {
             onSuccess: (page) => {
                 setIsProcessing(false);
@@ -440,8 +437,8 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
                     nama_pasien: namaPasien,
                     layanan: selectedLayanan,
                     total_harga: totalHarga,
-                    total_bayar: paymentInput, 
-                    kembalian: paymentInput - totalHarga,
+                    total_bayar: parseFloat(totalBayar),
+                    kembalian: kembalian,
                     tanggal: new Date().toISOString()
                 });
 
@@ -490,14 +487,327 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
             month: '2-digit',
             year: 'numeric'
         }).replace(/\//g, '-');
-        
-        const receiptHtml = generateReceiptHtml({
-            logoKiri,
-            logoKanan,
-            dayName,
-            formattedDate,
-            receiptData
-        });
+        const receiptHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Struk Pembayaran</title>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <link rel="preconnect" href="https://fonts.googleapis.com">
+                <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+                <style>
+                    @page {
+                        size: A4 portrait;
+                        margin: 10mm 10mm 10mm 10mm;
+                    }
+                    *, *::before, *::after {
+                        box-sizing: border-box;
+                    }
+                    body {
+                        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+                        width: 100%;
+                        max-width: 100%;
+                        margin: 0;
+                        padding: 15px;
+                        box-sizing: border-box;
+                        font-size: 12px;
+                        line-height: 1.5;
+                        color: #1a1a1a;
+                        background-color: #f9f9f9;
+                    }
+                    .receipt-container {
+                        background-color: white;
+                        max-width: 800px;
+                        margin: 0 auto;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+                        overflow: hidden;
+                        padding-bottom: 25px;
+                    }
+                    .header {
+                        text-align: center;
+                        padding: 15px 20px;
+                        background-color: #f2f2f2;
+                        position: relative;
+                        border-bottom: 1px solid #e0e0e0;
+                    }
+                    .logo-left {
+                        position: absolute;
+                        left: 20px;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        height: 60px;
+                        border-radius: 4px;
+                    }
+                    .logo-right {
+                        position: absolute;
+                        right: 20px;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        height: 60px;
+                        border-radius: 4px;
+                    }
+                    .header h2, .header h3, .header p {
+                        margin: 4px 0;
+                        color: #2c3e50;
+                    }
+                    .header h2 {
+                        font-weight: 700;
+                        font-size: 16px;
+                    }
+                    .header h3 {
+                        font-weight: 600;
+                        font-size: 14px;
+                    }
+                    .header p {
+                        font-size: 12px;
+                        color: #555;
+                    }
+                    .title-section {
+                        text-align: center;
+                        padding: 12px 0;
+                        border-bottom: 2px dashed #e0e0e0;
+                        margin: 0 25px 15px;
+                    }
+                    .title-section h3 {
+                        margin: 0;
+                        color: #2c3e50;
+                        font-weight: 600;
+                        font-size: 16px;
+                    }
+                    .content-section {
+                        padding: 0 25px;
+                    }
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 20px;
+                    }
+                    th, td {
+                        border: 1px solid #e0e0e0;
+                        padding: 8px 10px;
+                        text-align: left;
+                        font-size: 12px;
+                    }
+                    th {
+                        background-color: #f8f9fa;
+                        font-weight: 600;
+                        color: #2c3e50;
+                    }
+                    tr:nth-child(even) {
+                        background-color: #f8f9fa;
+                    }
+                    .total-row td {
+                        font-weight: 700;
+                        color: #2c3e50;
+                        background-color: #e9f7ef;
+                    }
+                    .right-align {
+                        text-align: right;
+                    }
+                    .footer {
+                        margin-top: 20px;
+                        text-align: right;
+                        padding: 0 25px;
+                    }
+                    .signature-line {
+                        margin-top: 50px;
+                        border-top: 1px solid #555;
+                        width: 150px;
+                        display: inline-block;
+                    }
+                    .thank-you {
+                        text-align: center;
+                        margin-top: 25px;
+                        color: #555;
+                        font-size: 12px;
+                        padding: 0 25px;
+                    }
+                    .receipt-info {
+                        text-align: right;
+                        font-size: 11px;
+                        margin-top: 5px;
+                        color: #777;
+                        font-style: italic;
+                    }
+                    .stamp {
+                        position: relative;
+                        display: inline-block;
+                        margin-top: 25px;
+                        transform: rotate(-5deg);
+                        opacity: 0.5;
+                    }
+                    .stamp-border {
+                        position: absolute;
+                        top: -10px;
+                        left: -10px;
+                        right: -10px;
+                        bottom: -10px;
+                        border: 2px dashed rgba(0, 128, 0, 0.5);
+                        border-radius: 50%;
+                    }
+                    .stamp-text {
+                        padding: 10px 15px;
+                        font-weight: bold;
+                        color: green;
+                        font-size: 20px;
+                        text-transform: uppercase;
+                    }
+                    @media print {
+                        body {
+                            width: 100%;
+                            height: 100%;
+                            background-color: white;
+                            padding: 0;
+                            margin: 0;
+                        }
+                        .receipt-container {
+                            box-shadow: none;
+                            max-width: 100%;
+                            border-radius: 0;
+                        }
+                        .no-print {
+                            display: none;
+                        }
+                    }
+                    .control-buttons {
+                        text-align: center;
+                        margin-top: 25px;
+                    }
+                    .btn {
+                        padding: 10px 20px;
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-weight: 600;
+                        font-size: 14px;
+                        transition: all 0.2s ease;
+                        margin: 0 5px;
+                    }
+                    .btn-print {
+                        background-color: #4CAF50;
+                        color: white;
+                    }
+                    .btn-print:hover {
+                        background-color: #3e8e41;
+                    }
+                    .btn-close {
+                        background-color: #f44336;
+                        color: white;
+                    }
+                    .btn-close:hover {
+                        background-color: #d32f2f;
+                    }
+                    .date-time-info {
+                        font-size: 11px;
+                        color: #777;
+                        text-align: center;
+                        margin-bottom: 10px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="receipt-container">
+                    <div class="header">
+                        <img src="${logoKiri}" alt="Logo Kiri" class="logo-left" />
+                        <h2>PEMERINTAH KABUPATEN SERANG</h2>
+                        <h3>DINAS KESEHATAN</h3>
+                        <h3>UPT PUSKESMAS BOJONEGARA</h3>
+                        <p>Jl. KH. Jakfar No. 3 Bojonegara Kab. Serang Banten</p>
+                        <p>Email: pkm_bojonegara@yahoo.co.id</p>
+                        <img src="${logoKanan}" alt="Logo Kanan" class="logo-right" />
+                    </div>
+                    
+                    <div class="title-section">
+                        <h3>Struk Pembayaran E-Register Rajal</h3>
+                    </div>
+                    
+                    <div class="date-time-info">
+                        Dicetak pada: ${dayName}, ${formattedDate} ${new Date().toLocaleTimeString('id-ID')}
+                    </div>
+                    
+                    <div class="content-section">
+                        <table>
+                            <tr>
+                                <th width="15%">Tanggal</th>
+                                <th width="25%">Nama</th>
+                                <th width="30%">Pemeriksaan</th>
+                                <th width="10%">JASAR</th>
+                                <th width="10%">JASPEL</th>
+                                <th width="10%">Total</th>
+                            </tr>
+                            <tr>
+                                <td rowspan="${Math.max(receiptData.layanan.length, 1)}">
+                                    ${dayName}<br>
+                                    ${formattedDate}
+                                </td>
+                                <td rowspan="${Math.max(receiptData.layanan.length, 1)}">
+                                    ${receiptData.nama_pasien}
+                                </td>
+                                ${receiptData.layanan.length > 0 ? `
+                                <td>${receiptData.layanan[0].nama_layanan}</td>
+                                <td class="right-align">${formatRupiah(receiptData.layanan[0].total_harga * 0.4).replace('Rp', '')}</td>
+                                <td class="right-align">${formatRupiah(receiptData.layanan[0].total_harga * 0.6).replace('Rp', '')}</td>
+                                <td class="right-align">${formatRupiah(receiptData.layanan[0].total_harga).replace('Rp', '')}</td>
+                                ` : `
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                `}
+                            </tr>
+                            ${receiptData.layanan.slice(1).map((item) => `
+                                <tr>
+                                    <td>${item.nama_layanan}</td>
+                                    <td class="right-align">${formatRupiah(item.total_harga * 0.4).replace('Rp', '')}</td>
+                                    <td class="right-align">${formatRupiah(item.total_harga * 0.6).replace('Rp', '')}</td>
+                                    <td class="right-align">${formatRupiah(item.total_harga).replace('Rp', '')}</td>
+                                </tr>
+                            `).join('')}
+                            <tr class="total-row">
+                                <td colspan="5" class="right-align">JUMLAH</td>
+                                <td class="right-align">${formatRupiah(receiptData.total_harga).replace('Rp', '')}</td>
+                            </tr>
+                        </table>
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+                            <div class="receipt-info">
+                               
+                            </div>
+                            
+                            <div class="stamp">
+                                <div class="stamp-border"></div>
+                                <div class="stamp-text">Lunas</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>Mengetahui</p>
+                        <div class="signature-line"></div>
+                        <p>h ismat</p>
+                    </div>
+                    
+                    <div class="thank-you">
+                        <p>— Terima Kasih Atas Kunjungan Anda —</p>
+                    </div>
+                </div>
+
+                <div class="control-buttons no-print">
+                    <button onclick="window.print()" class="btn btn-print">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 5px;"><path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><path d="M6 14h12v8H6z"></path></svg>
+                        Print Struk
+                    </button>
+                    <button onclick="window.close()" class="btn btn-close">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 5px;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        Tutup
+                    </button>
+                </div>
+            </body>
+            </html>
+        `;
 
         printWindow.document.write(receiptHtml);
         printWindow.document.close();
@@ -510,7 +820,13 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
     };
 
     const formatRupiah = (amount: number) => {
-        return formatReceiptRupiah(amount);
+        
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(amount || 0);
     };
 
     const handleTotalBayarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -584,12 +900,399 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
             }
         }, 1000);
     };
+    
+    const generateReceiptHtml = ({ logoKiri, logoKanan, dayName, formattedDate, receiptData }: any) => {
+        return `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Struk Pembayaran</title>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <link rel="preconnect" href="https://fonts.googleapis.com">
+                <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+                <style>
+                    @page {
+                        size: A4 portrait;
+                        margin: 10mm 10mm 10mm 10mm;
+                    }
+                    *, *::before, *::after {
+                        box-sizing: border-box;
+                    }
+                    body {
+                        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+                        width: 100%;
+                        max-width: 100%;
+                        margin: 0;
+                        padding: 15px;
+                        box-sizing: border-box;
+                        font-size: 12px;
+                        line-height: 1.5;
+                        color: #1a1a1a;
+                        background-color: #f9f9f9;
+                    }
+                    .receipt-container {
+                        background-color: white;
+                        max-width: 800px;
+                        margin: 0 auto;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+                        overflow: hidden;
+                        padding-bottom: 25px;
+                    }
+                    .header {
+                        text-align: center;
+                        padding: 15px 20px;
+                        background-color: #f2f2f2;
+                        position: relative;
+                        border-bottom: 1px solid #e0e0e0;
+                    }
+                    .logo-left {
+                        position: absolute;
+                        left: 20px;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        height: 60px;
+                        border-radius: 4px;
+                    }
+                    .logo-right {
+                        position: absolute;
+                        right: 20px;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        height: 60px;
+                        border-radius: 4px;
+                    }
+                    .header h2, .header h3, .header p {
+                        margin: 4px 0;
+                        color: #2c3e50;
+                    }
+                    .header h2 {
+                        font-weight: 700;
+                        font-size: 16px;
+                    }
+                    .header h3 {
+                        font-weight: 600;
+                        font-size: 14px;
+                    }
+                    .header p {
+                        font-size: 12px;
+                        color: #555;
+                    }
+                    .title-section {
+                        text-align: center;
+                        padding: 12px 0;
+                        border-bottom: 2px dashed #e0e0e0;
+                        margin: 0 25px 15px;
+                    }
+                    .title-section h3 {
+                        margin: 0;
+                        color: #2c3e50;
+                        font-weight: 600;
+                        font-size: 16px;
+                    }
+                    .content-section {
+                        padding: 0 25px;
+                    }
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 20px;
+                    }
+                    th, td {
+                        border: 1px solid #e0e0e0;
+                        padding: 8px 10px;
+                        text-align: left;
+                        font-size: 12px;
+                    }
+                    th {
+                        background-color: #f8f9fa;
+                        font-weight: 600;
+                        color: #2c3e50;
+                    }
+                    tr:nth-child(even) {
+                        background-color: #f8f9fa;
+                    }
+                    .total-row td {
+                        font-weight: 700;
+                        color: #2c3e50;
+                        background-color: #e9f7ef;
+                    }
+                    .right-align {
+                        text-align: right;
+                    }
+                    .footer {
+                        margin-top: 20px;
+                        text-align: right;
+                        padding: 0 25px;
+                    }
+                    .signature-line {
+                        margin-top: 50px;
+                        border-top: 1px solid #555;
+                        width: 150px;
+                        display: inline-block;
+                    }
+                    .thank-you {
+                        text-align: center;
+                        margin-top: 25px;
+                        color: #555;
+                        font-size: 12px;
+                        padding: 0 25px;
+                    }
+                    .receipt-info {
+                        text-align: right;
+                        font-size: 11px;
+                        margin-top: 5px;
+                        color: #777;
+                        font-style: italic;
+                    }
+                    .stamp {
+                        position: relative;
+                        display: inline-block;
+                        margin-top: 25px;
+                        transform: rotate(-5deg);
+                        opacity: 0.5;
+                    }
+                    .stamp-border {
+                        position: absolute;
+                        top: -10px;
+                        left: -10px;
+                        right: -10px;
+                        bottom: -10px;
+                        border: 2px dashed rgba(0, 128, 0, 0.5);
+                        border-radius: 50%;
+                    }
+                    .stamp-text {
+                        padding: 10px 15px;
+                        font-weight: bold;
+                        color: green;
+                        font-size: 20px;
+                        text-transform: uppercase;
+                    }
+                    @media print {
+                        body {
+                            width: 100%;
+                            height: 100%;
+                            background-color: white;
+                            padding: 0;
+                            margin: 0;
+                        }
+                        .receipt-container {
+                            box-shadow: none;
+                            max-width: 100%;
+                            border-radius: 0;
+                        }
+                        .no-print {
+                            display: none;
+                        }
+                    }
+                    .control-buttons {
+                        text-align: center;
+                        margin-top: 25px;
+                    }
+                    .btn {
+                        padding: 10px 20px;
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-weight: 600;
+                        font-size: 14px;
+                        transition: all 0.2s ease;
+                        margin: 0 5px;
+                    }
+                    .btn-print {
+                        background-color: #4CAF50;
+                        color: white;
+                    }
+                    .btn-print:hover {
+                        background-color: #3e8e41;
+                    }
+                    .btn-close {
+                        background-color: #f44336;
+                        color: white;
+                    }
+                    .btn-close:hover {
+                        background-color: #d32f2f;
+                    }
+                    .date-time-info {
+                        font-size: 11px;
+                        color: #777;
+                        text-align: center;
+                        margin-bottom: 10px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="receipt-container">
+                    <div class="header">
+                        <img src="${logoKiri}" alt="Logo Kiri" class="logo-left" />
+                        <h2>PEMERINTAH KABUPATEN SERANG</h2>
+                        <h3>DINAS KESEHATAN</h3>
+                        <h3>UPT PUSKESMAS BOJONEGARA</h3>
+                        <p>Jl. KH. Jakfar No. 3 Bojonegara Kab. Serang Banten</p>
+                        <p>Email: pkm_bojonegara@yahoo.co.id</p>
+                        <img src="${logoKanan}" alt="Logo Kanan" class="logo-right" />
+                    </div>
+                    
+                    <div class="title-section">
+                        <h3>Struk Pembayaran E-Register Rajal</h3>
+                    </div>
+                    
+                    <div class="date-time-info">
+                        Dicetak pada: ${dayName}, ${formattedDate} ${new Date().toLocaleTimeString('id-ID')}
+                    </div>
+                    
+                    <div class="content-section">
+                        <table>
+                            <tr>
+                                <th width="15%">Tanggal</th>
+                                <th width="25%">Nama</th>
+                                <th width="30%">Pemeriksaan</th>
+                                <th width="10%">JASAR</th>
+                                <th width="10%">JASPEL</th>
+                                <th width="10%">Total</th>
+                            </tr>
+                            <tr>
+                                <td rowspan="${Math.max(receiptData.layanan.length, 1)}">
+                                    ${dayName}<br>
+                                    ${formattedDate}
+                                </td>
+                                <td rowspan="${Math.max(receiptData.layanan.length, 1)}">
+                                    ${receiptData.nama_pasien}
+                                </td>
+                                ${receiptData.layanan && receiptData.layanan.length > 0 ? `
+                                <td>${receiptData.layanan[0].nama_layanan}</td>
+                                <td class="right-align">${formatRupiah(receiptData.layanan[0].total_harga * 0.4).replace('Rp', '')}</td>
+                                <td class="right-align">${formatRupiah(receiptData.layanan[0].total_harga * 0.6).replace('Rp', '')}</td>
+                                <td class="right-align">${formatRupiah(receiptData.layanan[0].total_harga).replace('Rp', '')}</td>
+                                ` : `
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                `}
+                            </tr>
+                            ${receiptData.layanan && receiptData.layanan.slice(1).map((item: any, index: number) => `
+                                <tr>
+                                    <td>${item.nama_layanan}</td>
+                                    <td class="right-align">${formatRupiah(item.total_harga * 0.4).replace('Rp', '')}</td>
+                                    <td class="right-align">${formatRupiah(item.total_harga * 0.6).replace('Rp', '')}</td>
+                                    <td class="right-align">${formatRupiah(item.total_harga).replace('Rp', '')}</td>
+                                </tr>
+                            `).join('')}
+                            <tr class="total-row">
+                                <td colspan="5" class="right-align">JUMLAH</td>
+                                <td class="right-align">${formatRupiah(receiptData.total_harga).replace('Rp', '')}</td>
+                            </tr>
+                        </table>
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+                            <div class="receipt-info">
+                               
+                            </div>
+                            
+                            <div class="stamp">
+                                <div class="stamp-border"></div>
+                                <div class="stamp-text">Lunas</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>Mengetahui</p>
+                        <div class="signature-line"></div>
+                        <p>h ismat</p>
+                    </div>
+                    
+                    <div class="thank-you">
+                        <p>— Terima Kasih Atas Kunjungan Anda —</p>
+                    </div>
+                </div>
+
+                <div class="control-buttons no-print">
+                    <button onclick="window.print()" class="btn btn-print">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 5px;"><path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><path d="M6 14h12v8H6z"></path></svg>
+                        Print Struk
+                    </button>
+                    <button onclick="window.close()" class="btn btn-close">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 5px;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        Tutup
+                    </button>
+                </div>
+            </body>
+            </html>
+        `;
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Transaksi" />
             
-
+            <style>{`
+                @keyframes shimmer {
+                    0% {
+                        background-position: -200% 0;
+                    }
+                    100% {
+                        background-position: 200% 0;
+                    }
+                }
+                
+                .swipe-action-row {
+                    position: relative;
+                    overflow: hidden;
+                    touch-action: pan-y;
+                    user-select: none;
+                }
+                
+                .swipe-action-content {
+                    transition: transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+                    width: 100%;
+                    z-index: 10;
+                    background-color: inherit;
+                }
+                
+                .swipe-action-delete {
+                    position: absolute;
+                    top: 0;
+                    right: 0;
+                    height: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: linear-gradient(135deg, #ff4b4b, #ff0000);
+                    color: white;
+                    width: 80px;
+                    opacity: 0;
+                    transition: opacity 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+                    z-index: 5;
+                    box-shadow: inset 4px 0 10px rgba(0, 0, 0, 0.1);
+                }
+                .card-3d {
+                    transition: all 0.3s ease;
+                    box-shadow: 0 10px 30px -15px rgba(0, 0, 0, 0.3);
+                }
+                .card-3d:hover {
+                    box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.4);
+                }
+                .shimmer-effect:hover::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    right: 0;
+                    bottom: 0;
+                    left: 0;
+                    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+                    background-size: 200% 200%;
+                    animation: shimmer 2s infinite;
+                    z-index: 1;
+                    pointer-events: none;
+                }
+                .dark .shimmer-effect:hover::before {
+                    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.05), transparent);
+                }
+            `}</style>
             <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <div className="grid grid-cols-1 md:grid-cols-10 gap-4">
                     <div className="space-y-4 md:col-span-6">
@@ -768,12 +1471,12 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
                                                 <Table>
                                                     <TableHeader>
                                                         <TableRow className="bg-gray-50 dark:bg-[#0A0A0A]/80">
-                                                            <TableHead className="w-[55%] py-0.5 pl-3 text-xs font-medium">Layanan</TableHead>
-                                                            <TableHead className="text-right py-0.5 w-[45%] text-xs font-medium">Harga</TableHead>
+                                                            <TableHead className="w-[60%] py-2 pl-3">Layanan</TableHead>
+                                                            <TableHead className="text-right py-2 w-[40%]">Harga</TableHead>
                                                         </TableRow>
                                                     </TableHeader>
                                                 </Table>
-                                                <div className="max-h-40 overflow-y-auto custom-scrollbar w-full">
+                                                <div className="max-h-56 overflow-y-auto custom-scrollbar w-full">
                                                     <Table>
                                                         <TableBody>
                                                             {selectedLayanan.map((layanan, index) => (
@@ -790,7 +1493,7 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
                                                                             transform: swipingItemId === layanan.id_layanan ? `translateX(${swipePosition}px)` : 'translateX(0)'
                                                                         }}
                                                                         onTouchStart={(e) => {
-                                                                            e.preventDefault(); 
+                                                                            e.preventDefault(); // Prevent text selection
                                                                             setSwipingItemId(layanan.id_layanan);
                                                                             setSwipePosition(0);
                                                                         }}
@@ -813,7 +1516,7 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
                                                                             }
                                                                         }}
                                                                         onMouseDown={(e) => {
-                                                                            e.preventDefault(); 
+                                                                            e.preventDefault(); // Prevent text selection
                                                                             setIsDragging(true);
                                                                             setSwipingItemId(layanan.id_layanan);
                                                                             setStartX(e.clientX);
@@ -843,12 +1546,12 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
                                                                             }
                                                                         }}
                                                                     >
-                                                                        <TableCell className="py-0 font-medium truncate w-[55%] pl-3 h-8">
-                                                                             <div className="w-full truncate text-sm">{layanan.nama_layanan}</div>
-                                                                         </TableCell>
-                                                                         <TableCell className="py-0 text-right text-primary font-medium whitespace-nowrap pr-2 w-[45%]">
-                                                                             <span className="inline-block min-w-[80px] text-right text-sm">{formatRupiah(layanan.total_harga)}</span>
-                                                                         </TableCell>
+                                                                        <TableCell className="py-2 font-medium truncate w-[60%] pl-3">
+                                                                            <div className="w-full truncate">{layanan.nama_layanan}</div>
+                                                                        </TableCell>
+                                                                        <TableCell className="py-2 text-right text-primary font-medium whitespace-nowrap pr-2 w-[40%]">
+                                                                            <span className="inline-block min-w-[100px] text-right">{formatRupiah(layanan.total_harga)}</span>
+                                                                        </TableCell>
                                                                     </div>
                                                                     <div 
                                                                         className="swipe-action-delete"
@@ -856,10 +1559,10 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
                                                                             opacity: swipingItemId === layanan.id_layanan ? Math.min(1, Math.abs(swipePosition) / 80) : 0
                                                                         }}
                                                                     >
-                                                                        <div className="flex items-center justify-end h-full px-2 bg-red-600">
-                                                                             <X className="h-3.5 w-3.5 mr-1" />
-                                                                             <span className="text-xs font-medium">Hapus</span>
-                                                                         </div>
+                                                                        <div className="flex flex-col items-center justify-center p-2 rounded-lg bg-white/10">
+                                                                            <X className="h-5 w-5 mb-1 drop-shadow-sm" />
+                                                                            <span className="text-xs font-medium tracking-wide drop-shadow-sm">Hapus</span>
+                                                                        </div>
                                                                     </div>
                                                                 </TableRow>
                                                             ))}
@@ -869,10 +1572,10 @@ export default function TransaksiIndex({ transaksi, layanan, popularLayanan = []
                                             </div>
                                             
                                             <div className="bg-primary/5 dark:bg-primary/10 p-4 rounded-lg border border-primary/10">
-                                                 <div className="flex justify-between items-center">
-                                                     <p className="text-sm font-medium">Total</p>
-                                                     <p className="text-base font-bold text-primary">{formatRupiah(totalHarga)}</p>
-                                                 </div>
+                                                <div className="flex justify-between items-center">
+                                                    <p className="text-base font-medium">Total</p>
+                                                    <p className="text-xl font-bold text-primary">{formatRupiah(totalHarga)}</p>
+                                                </div>
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-3 pt-2">

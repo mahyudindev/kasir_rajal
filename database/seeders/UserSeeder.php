@@ -16,7 +16,7 @@ class UserSeeder extends Seeder
     {
         // Create bendahara account
         $bendahara = User::create([
-            'email' => 'bendahara@example.com',
+            'email' => 'bendahara@gmail.com',
             'password' => Hash::make('123'),
             'role' => 'bendahara',
         ]);
@@ -32,7 +32,7 @@ class UserSeeder extends Seeder
 
         // Create kasir account
         $kasir = User::create([
-            'email' => 'kasir@example.com',
+            'email' => 'kasir@gmail.com',
             'password' => Hash::make('123'),
             'role' => 'kasir',
         ]);
